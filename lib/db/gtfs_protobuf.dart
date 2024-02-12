@@ -6,7 +6,6 @@ FeedMessage? _vehiclePositionMessage;
 
 
 Future<FeedMessage> get vehiclePositionMessage async{
-  if(_vehiclePositionMessage != null) return _vehiclePositionMessage!;
   final url = Uri.parse('http://gtfs.edmonton.ca/TMGTFSRealTimeWebService/Vehicle/VehiclePositions.pb');
   final response = await http.get(url);
 

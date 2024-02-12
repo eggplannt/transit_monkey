@@ -12,11 +12,10 @@ Map<String, GtfsTable> tablesMap = {
 
 // Function to initialize database
 Future<void> initDatabase() async {
-  if (_database != null) {
-    return;
-  }
+  if (_database != null) return;
+  var dbPath = await getDatabasesPath();
   _database = await openDatabase(
-    join(await getDatabasesPath(), 'my_database.db'),
+    join(dbPath, 'gtfs.db'),
     onCreate: _createTable,
     version: 1,
   );
@@ -52,7 +51,7 @@ Future<void> _createTable(Database db, int version) async{
     if(primaryKeys.isNotEmpty){
       columns = '$columns PRIMARY KEYS(${primaryKeys.join(', ')}))';
     }
-
+    print('CREATEING TABLE $tableName ( $columns )');
     db.execute('CREATE TABLE $tableName ( $columns )');
     // Insert initial data if provided
     for (final entry in data) {
