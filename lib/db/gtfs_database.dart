@@ -7,15 +7,19 @@ import 'package:path/path.dart';
 Database? _database;
 
 Map<String, GtfsTable> tablesMap = {
-  'stops': GtfsTable(csvPath: 'assets/csvs/stops.txt', tableName: 'stops')
+  'stops': GtfsTable(csvPath: 'assets/csvs/stops.txt', tableName: 'stops'),
+  'trips': GtfsTable(csvPath: 'assets/csvs/trips.txt', tableName: 'trips')
+
 };
 
 // Function to initialize database
 Future<void> initDatabase() async {
   if (_database != null) return;
+
   var dbPath = await getDatabasesPath();
+  var path = join(dbPath, 'gtfs.db');
   _database = await openDatabase(
-    join(dbPath, 'gtfs.db'),
+    path,
     onCreate: _createTable,
     version: 1,
   );
@@ -49,18 +53,19 @@ Future<void> _createTable(Database db, int version) async{
       }
     }).join(', ');
     if(primaryKeys.isNotEmpty){
-      columns = '$columns PRIMARY KEYS(${primaryKeys.join(', ')}))';
+      columns = '$columns, PRIMARY KEY(${primaryKeys.join(', ')})';
     }
     print('CREATEING TABLE $tableName ( $columns )');
-    db.execute('CREATE TABLE $tableName ( $columns )');
+    await db.execute('CREATE TABLE $tableName ( $columns )');
     // Insert initial data if provided
     for (final entry in data) {
-      db.insert(tableName, entry);
+      print(entry.toString());
+      await db.insert(tableName, entry);
     }
+
   }
 }
 class GtfsTable {
-  late List<String>? _header;
 
   String csvPath;
   String tableName;
@@ -71,23 +76,16 @@ class GtfsTable {
 
     final rawData = await rootBundle.loadString(csvPath);
     List<List<dynamic>> csvLists = const CsvToListConverter().convert(rawData, convertEmptyTo: 'Empty');
-    _header = csvLists[0].map((item) => item as String).toList();
+    List<String> header = csvLists[0].map((item) => item as String).toList();
     List<Map<String, dynamic>> maps = [];
     for (int i = 1; i < csvLists.length; i++){
       Map<String, dynamic> map = {};
-      for(int j = 0; j < _header!.length; j++){
-        map[_header![j]] = csvLists[i][j];
+      for(int j = 0; j < header.length; j++){
+        map[header[j]] = csvLists[i][j];
       }
       maps.add(map);
     }
     return maps;
-  }
-  Future<List<String>> get header async{
-    if(_header != null) return _header!;
-    final rawData = await rootBundle.loadString(csvPath);
-    List<List<dynamic>> csvLists = const CsvToListConverter().convert(rawData, convertEmptyTo: 'Empty');
-    _header = csvLists[0].map((item) => item as String).toList();
-    return _header!;
   }
   Future<List<Map<String, dynamic>>> queryDatabase(String query, List<dynamic> args) async {
     Database db = await getDatabase();
