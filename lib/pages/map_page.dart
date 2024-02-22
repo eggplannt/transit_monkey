@@ -9,7 +9,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../db/generated/gtfs-realtime.pb.dart' hide  Position;
 import '../db/gtfs_database.dart' as gtfs_db;
-import '../db/gtfs_protobuf.dart' as gtfs_pb;
 
 import 'map_page_body.dart';
 
@@ -74,15 +73,7 @@ class _MapPageState extends State<MapPage> {
     setState(() {initializedDatabase = true;});
 
   }
-  
-  
-  Future<void> initGetVehicleFeed()async{
-    print('initially getting feed');
-    return await gtfs_pb.vehiclePositionMessage.then((feed ) {
-      print('initially got feed');
-      vehiclesFeed = feed;
-    });
-  }  
+
   @override
   void initState() {
     super.initState();
@@ -105,22 +96,18 @@ class _MapPageState extends State<MapPage> {
       body: hasLocationPermission ? (
         initializedDatabase ? (
           vehiclesFeed == null || currentPosition == null ? FutureBuilder(
-            future: Future.wait([
-              getCurrentPosition(),
-              initGetVehicleFeed()
-              
-            ]),
+            future: getCurrentPosition(),
             builder: (context, snapshot){
               if (snapshot.connectionState == ConnectionState.done) {
                 if (snapshot.hasError) return Text("Error: ${snapshot.error}");
 
-                return MapPageBody(currentPosition!, vehiclesFeed!);
+                return MapPageBody(currentPosition!);
               }
               else {
                 return loadingWidget('Loading Map', context);
               } 
             },
-          ):MapPageBody(currentPosition!, vehiclesFeed!)
+          ):MapPageBody(currentPosition!)
         ): loadingWidget('Loading Backend', context)
       ): null
     );

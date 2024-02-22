@@ -1,25 +1,20 @@
 // ignore_for_file: non_constant_identifier_names, use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:math' show cos, sqrt, asin, pi;
 
-import 'package:flutter/foundation.dart';
 import  'package:flutter/material.dart';
 import 'package:clippy_flutter/clippy_flutter.dart';
 import 'package:custom_info_window/custom_info_window.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import '../db/generated/gtfs-realtime.pb.dart' hide  Position;
 import '../db/gtfs_database.dart' as gtfs_db;
-import '../db/gtfs_protobuf.dart' as gtfs_pb;
-import 'package:transit_monkey/constants.dart';
 
 class MapPageBody extends StatefulWidget {
-  final LatLng initPosition; 
-  final FeedMessage vehiclesFeed;
+  final LatLng initPosition;
   const MapPageBody(
     this.initPosition,
-    this.vehiclesFeed,
     {super.key,}
   );
 
@@ -29,100 +24,97 @@ class MapPageBody extends StatefulWidget {
 class _MapPageBodyState extends State<MapPageBody> {
   Completer<GoogleMapController> _controller = Completer();
   final CustomInfoWindowController _customInfoWindowController = CustomInfoWindowController();
-  final _busMarkersStreamController = StreamController<Set<Marker>>();
-  final _busTimerStreamController = StreamController<int>();
-
-  int _busTimerIncrement = 0;
-
-  List<String> _previosTripIds = [];
-  List<Map<String, dynamic>>?  _gtfsTripDataLists;
 
   Set<Marker> markers = {};
   
   late LatLng initPosition; 
-  late FeedMessage initVehiclesFeed;
 
   @override
   void initState() {
     initPosition = widget.initPosition;
-    initVehiclesFeed = widget.vehiclesFeed;
-
-    updateVehicleMarkerStream();
-    updateMarkerTimerStream();
+    _getNearbyStopMarkers(initPosition, .5);
     super.initState();
   }
   @override
-  Widget build(BuildContext context) {
-    List<String> tripIds = [];
-    markers = {};
-
-    
-    for (int i = 0; i < initVehiclesFeed.entity.length; i++) {
-      String title = 'Loading...';
-      String markerId = 'Trip ${initVehiclesFeed.entity[i].vehicle.trip.tripId}';
-      LatLng markerPosition = LatLng(initVehiclesFeed.entity[i].vehicle.position.latitude, initVehiclesFeed.entity[i].vehicle.position.longitude);
-      var timestamp =  DateTime.fromMillisecondsSinceEpoch(initVehiclesFeed.entity[i].vehicle.timestamp.toInt() * 1000);
-      int secondsAgo = DateTime.now().difference(timestamp).inSeconds;
-      String tripId = initVehiclesFeed.entity[i].vehicle.trip.tripId;
-      tripIds.add(tripId);
-      addBusMarker(markerId, markerPosition, title, secondsAgo);
-    }
-    addBusMarker('Test Bus', initPosition, 'Test Bus', 5);
-
-    return StreamBuilder(
-      stream: _busMarkersStreamController.stream, 
-      initialData: markers,
-      builder: ((context, snapshot) {
-        return backgroundMap(initPosition, markers);
-      })
-    );
+  Widget build(BuildContext context) {    
+    markers.add(getBusStopMarker('Test Stop', initPosition, 'Test Stop',));
+    return backgroundMap(initPosition, markers);
   }
+  void _getNearbyStopMarkers(LatLng location, double distance) async{
 
-  void addBusMarker(String markerId, LatLng markerPosition, String title, int secondsAgo) {
-    markers.add(
-      Marker(
-        markerId: MarkerId(markerId),
-        position: markerPosition,
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          BitmapDescriptor.hueBlue
-        ),
-        onTap: () {
-          _customInfoWindowController.addInfoWindow!(
-            busItemWindow(title, secondsAgo),
-            markerPosition,
-          );
-        },
+    double deltaLatitude = (180/pi)*(distance/6378.137);
+    double deltaLongitude = (180/pi)*(distance/6378.137)/cos(pi/180*location.latitude);
+
+
+    print('getting data');
+    List<Map<String, dynamic>> stopDatas = await gtfs_db.tablesMap['stops']!.queryTable(
+      'SELECT stop_id, stop_name, stop_lat, stop_lon FROM ',
+      []
+    );
+
+    print('got data');
+    Set<Marker> newMarkers = markers;
+    
+
+    var filteredStopDatas = stopDatas.where((stopData) {
+      var lat = stopData['stop_lat'];
+      var lon = stopData['stop_lon'];
+      return lat >= location.latitude - deltaLatitude
+          && lat <= location.latitude + deltaLatitude
+          && lon >= location.longitude - deltaLongitude
+          && lon <= location.longitude + deltaLongitude;
+    });
+    if(filteredStopDatas.isEmpty) return;
+    for (var stopData in filteredStopDatas){
+      newMarkers.add(getBusStopMarker(
+        stopData['stop_id'].toString(),
+        LatLng(stopData['stop_lat'], stopData['stop_lon']),
+        stopData['stop_name'],
+      ));
+    }
+    print('used data');
+    setState(() {
+      markers = newMarkers;
+    });
+  }
+  Marker getBusStopMarker(String markerId, LatLng markerPosition, String title) {
+    
+    return  Marker(
+      markerId: MarkerId(markerId),
+      position: markerPosition,
+      icon: BitmapDescriptor.defaultMarkerWithHue(
+        BitmapDescriptor.hueGreen
       ),
+      // onTap: () {
+      //   _customInfoWindowController.addInfoWindow!(
+      //     busStopWindow(title),
+      //     markerPosition,
+      //   );
+      // },
     );
   }
   
-  Widget busItemWindow(String title, int secondsAgo) {
-    return StreamBuilder(
-      stream: _busTimerStreamController.stream,
-      initialData: _busTimerIncrement,
-      builder: (context, snapshot) {
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Bevel(
-              cutLength: 10, 
-              child: Container(
-                decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(6)),
-                child: ListTile(
-                  tileColor: Theme.of(context).colorScheme.primaryContainer,
-                  leading: const ImageIcon(AssetImage(busImagePath)),
-                  title: Text(title),
-                  subtitle: Text('as of ${secondsAgo + snapshot.data!}s ago'),
-                  
-                ),
-              )
-            ),
-          ],
-        );
-      }
+  Widget busStopWindow(String title) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Bevel(
+          cutLength: 10, 
+          child: Container(
+            // decoration: BoxDecoration(
+            //         color: Theme.of(context).colorScheme.primaryContainer,
+            //         borderRadius: BorderRadius.circular(6)),
+            // child: ListTile(
+            //   tileColor: Theme.of(context).colorScheme.primaryContainer,
+            //   leading: const ImageIcon(AssetImage(busImagePath)),
+            //   title: Text(title),
+            //   subtitle: Text('as of ${secondsAgo + snapshot.data!}s ago'),
+              
+            // ),
+          )
+        ),
+      ],
     );
   }
 
@@ -144,7 +136,7 @@ class _MapPageBodyState extends State<MapPageBody> {
           },
           markers: markers,
           myLocationEnabled: true,
-          myLocationButtonEnabled: false,
+          myLocationButtonEnabled: true,
           onMapCreated: (controller) {
               _controller.complete(controller);
               _customInfoWindowController.googleMapController = controller;
@@ -170,80 +162,13 @@ class _MapPageBodyState extends State<MapPageBody> {
     mapStyle  = await rootBundle.loadString('assets/json/map_lightmode.json');
     controller.setMapStyle(mapStyle);
   }
-  Set<Marker> handleMarkers(List<Map<String, dynamic>> gtfsDataLists) {
-    Set<Marker> newMarkers = {};
-    
-    for(int i = 0; i < _gtfsTripDataLists!.length; i++){
-      var timestamp =  DateTime.fromMillisecondsSinceEpoch(initVehiclesFeed.entity[i].vehicle.timestamp.toInt() * 1000);
-      int secondsAgo = DateTime.now().difference(timestamp).inSeconds;
-      Map<String, dynamic> data = gtfsDataLists[i];
-      newMarkers.add(
-        Marker(
-          markerId: markers.elementAt(i).mapsId,
-          position: markers.elementAt(i).position,
-          icon: markers.elementAt(i).icon,
-          onTap: () {
-            _customInfoWindowController.addInfoWindow!(
-              busItemWindow(data['trip_headsign'], secondsAgo),
-              markers.elementAt(i).position,
-            );
-          },
-        )
-      );
-    }
-    markers = newMarkers;
-    addBusMarker('Test Bus', initPosition, 'Test Bus', 5);
-    return markers;
-  }
-
-  Future<void> getGtfsDataLists(List<String> tripIds) async {
-    if(listEquals(_previosTripIds, tripIds)) return;
-    List<Map<String, dynamic>> newGtfsTripDataLists = [];
-    for(var tripId in tripIds){
-      var list =  await gtfs_db.tablesMap['trips']!.queryDatabase('SELECT trip_headsign FROM WHERE trip_id =?', [tripId]);
-      if(list.isNotEmpty){
-        print(list.first.toString());
-        newGtfsTripDataLists.add(list.first);
-      }
-      else{
-        Map<String, dynamic> noData = {'trip_headsign': 'No Data'};
-        print(noData.toString());
-        newGtfsTripDataLists.add(noData);
-      }
-    }
-    _gtfsTripDataLists = newGtfsTripDataLists;
-    _previosTripIds = tripIds;
-    
-  }
-  
-  updateVehicleMarkerStream() async {
-    while(true){
-      await Future.delayed(const Duration(seconds: 10));
-      print('getting feed');
-      FeedMessage feed = await gtfs_pb.vehiclePositionMessage.then((feed ) {
-        print('got feed');
-        return feed;
-      });
-      List<String> tripIds = [];
-      for(var entry in feed.entity){
-        tripIds.add(entry.vehicle.trip.tripId);
-      }
-      await getGtfsDataLists(tripIds);
-      _busTimerIncrement = 0;
-      _busMarkersStreamController.add(handleMarkers(_gtfsTripDataLists!));
-    }
-  }
-  updateMarkerTimerStream() async {
-    while (true){
-      await Future.delayed(const Duration(seconds: 1));
-      _busTimerIncrement++;
-      _busTimerStreamController.add(_busTimerIncrement);
-    }
-  }
-
-  void dispose() {
-    _busMarkersStreamController.close();
-    _busTimerStreamController.close();
-    super.dispose();
-  }
 }
+
+/// returns distance between [p1] and [p2] in kelometers
+double calculatePointDistance(LatLng p1, LatLng p2){
+    double p = 0.017453292519943295;
+    double a = 0.5 - cos((p2.latitude - p1.latitude) * p)/2 +
+        cos(p1.latitude * p) * cos(p2.latitude * p) *
+            (1 - cos((p2.longitude - p1.longitude) * p))/2;
+    return 12742 * asin(sqrt(a));
+  }
