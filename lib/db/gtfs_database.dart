@@ -50,6 +50,8 @@ Future<void> _createTable(Database db, int version) async{
     String columns = firstMap.keys.map((column) {
       if(column.contains('_id')) {
         if(tableName.contains(column.replaceAll('_id', '').toLowerCase())) primaryKeys.add(column);
+        //automatically make ids text as a failsafe
+        return '$column TEXT';
       }
       final value = firstMap[column];
       if (value is int) {
@@ -136,6 +138,12 @@ class GtfsTable {
     Database db = await getDatabase();
     List<Map<String, dynamic>> output = [];
     query = query.replaceFirst('FROM', 'FROM $tableName');
+    
+    String debugMessage = query;
+    for(var arg in args){
+      debugMessage = debugMessage.replaceFirst('?', arg.toString());
+    }
+    print(debugMessage);
 
     await db.transaction((txn) async {
       output =  await txn.rawQuery(query, args);
