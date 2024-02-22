@@ -1,6 +1,7 @@
 // ignore_for_file: non_constant_identifier_names, use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:math' show cos, sqrt, asin, pi;
 
 import  'package:flutter/material.dart';
@@ -85,6 +86,7 @@ class _MapPageBodyState extends State<MapPageBody> {
       icon: BitmapDescriptor.defaultMarkerWithHue(
         BitmapDescriptor.hueGreen
       ),
+      // TODO: add info window
       // onTap: () {
       //   _customInfoWindowController.addInfoWindow!(
       //     busStopWindow(title),
@@ -162,6 +164,19 @@ class _MapPageBodyState extends State<MapPageBody> {
     mapStyle  = await rootBundle.loadString('assets/json/map_lightmode.json');
     controller.setMapStyle(mapStyle);
   }
+}
+class BusStop {
+  String stopName;
+  LatLng stopPosisiton;
+  int stopType;
+  int stopId;
+
+  BusStop(
+    this.stopName,
+    this.stopPosisiton,
+    this.stopType,
+    this.stopId
+  );
 }
 
 /// returns distance between [p1] and [p2] in kelometers
