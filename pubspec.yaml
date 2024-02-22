@@ -7,8 +7,10 @@ environment:
   sdk: '>=3.2.6 <4.0.0'
 
 dependencies:
+  clippy_flutter: ^2.0.0-nullsafety.1
   collection: ^1.18.0
   csv: ^5.1.1
+  custom_info_window: ^1.0.1
   fixnum: ^1.1.0
   flutter:
     sdk: flutter
@@ -31,3 +33,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/csvs/
+    - assets/json/
+    - assets/imgs/

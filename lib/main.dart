@@ -7,13 +7,19 @@ void main() {
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
-
+  static const Color themeColor = Colors.green;
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green)
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(seedColor: themeColor)
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(seedColor: themeColor, brightness: Brightness.dark)
+      ),
+      themeMode: ThemeMode.dark,
       home: const MapPage()
     );
   }

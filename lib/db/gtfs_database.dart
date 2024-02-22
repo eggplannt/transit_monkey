@@ -59,7 +59,7 @@ Future<void> _createTable(Database db, int version) async{
     await db.execute('CREATE TABLE $tableName ( $columns )');
     // Insert initial data if provided
     for (final entry in data) {
-      print(entry.toString());
+      print('${data.indexOf(entry) + 1} / ${data.length}');
       await db.insert(tableName, entry);
     }
 
@@ -89,9 +89,13 @@ class GtfsTable {
   }
   Future<List<Map<String, dynamic>>> queryDatabase(String query, List<dynamic> args) async {
     Database db = await getDatabase();
+    List<Map<String, dynamic>> output = [];
     query = query.replaceFirst('FROM', 'FROM $tableName');
-    
-    return await db.rawQuery(query, args);
+
+    await db.transaction((txn) async {
+      output =  await txn.rawQuery(query, args);
+    });
+    return output;
   }
   
 }
