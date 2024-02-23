@@ -1,7 +1,6 @@
 // ignore_for_file: non_constant_identifier_names, use_build_context_synchronously
 
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:math' show cos, sqrt, asin, pi;
 
 import  'package:flutter/material.dart';
@@ -26,56 +25,62 @@ class _MapPageBodyState extends State<MapPageBody> {
   Completer<GoogleMapController> _controller = Completer();
   final CustomInfoWindowController _customInfoWindowController = CustomInfoWindowController();
 
-  Set<Marker> markers = {};
+  Set<BusStop> busStops = {};
   
   late LatLng initPosition; 
 
   @override
   void initState() {
     initPosition = widget.initPosition;
-    _getNearbyStopMarkers(initPosition, .5);
+    _getNearbyStop(initPosition, .5);
     super.initState();
   }
   @override
-  Widget build(BuildContext context) {    
-    markers.add(getBusStopMarker('Test Stop', initPosition, 'Test Stop',));
+  Widget build(BuildContext context) {
+    Set<Marker> markers = busStops.map((busStop) =>
+      getBusStopMarker(
+        busStop.id,
+        busStop.position,
+        busStop.name
+    )).toSet();
+
+    markers.add(getBusStopMarker('Test Stop', initPosition, 'Test Stop'));
     return backgroundMap(initPosition, markers);
   }
-  void _getNearbyStopMarkers(LatLng location, double distance) async{
+  void _getNearbyStop(LatLng location, double distance) async{
 
     double deltaLatitude = (180/pi)*(distance/6378.137);
     double deltaLongitude = (180/pi)*(distance/6378.137)/cos(pi/180*location.latitude);
 
-
+    Set<BusStop> newBusStops = busStops;
     print('getting data');
-    List<Map<String, dynamic>> stopDatas = await gtfs_db.tablesMap['stops']!.queryTable(
-      'SELECT stop_id, stop_name, stop_lat, stop_lon FROM ',
+    await gtfs_db.tablesMap['stops']!.queryTable(
+      'SELECT stop_id, stop_name, stop_lat, stop_lon, location_type FROM ',
       []
-    );
-
-    print('got data');
-    Set<Marker> newMarkers = markers;
-    
-
-    var filteredStopDatas = stopDatas.where((stopData) {
-      var lat = stopData['stop_lat'];
-      var lon = stopData['stop_lon'];
-      return lat >= location.latitude - deltaLatitude
-          && lat <= location.latitude + deltaLatitude
-          && lon >= location.longitude - deltaLongitude
-          && lon <= location.longitude + deltaLongitude;
+    )
+    .then(
+      (stopDatas) => stopDatas.where((stopData) {
+        var lat = stopData['stop_lat'];
+        var lon = stopData['stop_lon'];
+        return lat >= location.latitude - deltaLatitude
+            && lat <= location.latitude + deltaLatitude
+            && lon >= location.longitude - deltaLongitude
+            && lon <= location.longitude + deltaLongitude;
+      })
+    )
+    .then((filteredStopDatas) {
+      if(filteredStopDatas.isEmpty) return;
+      for (var stopData in filteredStopDatas){
+        newBusStops.add(BusStop(
+          id: stopData['stop_id'].toString(),
+          position: LatLng(stopData['stop_lat'], stopData['stop_lon']),
+          name: stopData['stop_name'],
+          type: stopData['location_type']
+        ));
+      }
     });
-    if(filteredStopDatas.isEmpty) return;
-    for (var stopData in filteredStopDatas){
-      newMarkers.add(getBusStopMarker(
-        stopData['stop_id'].toString(),
-        LatLng(stopData['stop_lat'], stopData['stop_lon']),
-        stopData['stop_name'],
-      ));
-    }
-    print('used data');
     setState(() {
-      markers = newMarkers;
+      busStops = newBusStops;
     });
   }
   Marker getBusStopMarker(String markerId, LatLng markerPosition, String title) {
@@ -166,17 +171,17 @@ class _MapPageBodyState extends State<MapPageBody> {
   }
 }
 class BusStop {
-  String stopName;
-  LatLng stopPosisiton;
-  int stopType;
-  int stopId;
+  String name;
+  LatLng position;
+  int type;
+  String id;
 
-  BusStop(
-    this.stopName,
-    this.stopPosisiton,
-    this.stopType,
-    this.stopId
-  );
+  BusStop({
+    required this.name,
+    required this.position,
+    required this.type,
+    required this.id
+  });
 }
 
 /// returns distance between [p1] and [p2] in kelometers

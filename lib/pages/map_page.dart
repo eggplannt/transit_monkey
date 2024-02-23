@@ -61,11 +61,16 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> getCurrentPosition() async {
     print('getting location');
-    currentPosition =  await Geolocator.getCurrentPosition( desiredAccuracy: LocationAccuracy.best)
+    currentPosition =  await Geolocator.getLastKnownPosition()
     .then((value) { 
-      print('got location');
-      return LatLng(value.latitude, value.longitude);
+      if(value != null) {
+        return LatLng(value.latitude, value.longitude);
+      }
+      return null;
     });
+    currentPosition ??= await Geolocator.getCurrentPosition( desiredAccuracy: LocationAccuracy.best)
+    .then((value) => LatLng(value.latitude, value.longitude));
+    print('got location');
   }
 
   Future<void> initGtfsDatabase() async{
@@ -104,7 +109,7 @@ class _MapPageState extends State<MapPage> {
                 return MapPageBody(currentPosition!);
               }
               else {
-                return loadingWidget('Loading Map', context);
+                return loadingWidget('Getting Postion', context);
               } 
             },
           ):MapPageBody(currentPosition!)
