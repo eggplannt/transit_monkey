@@ -1,7 +1,7 @@
 // ignore_for_file: non_constant_identifier_names, use_build_context_synchronously
 
 import 'dart:async';
-import 'dart:math' show cos, sqrt, asin, pi;
+import 'dart:math' show cos, sqrt, asin;
 
 import  'package:flutter/material.dart';
 import 'package:clippy_flutter/clippy_flutter.dart';
@@ -32,7 +32,7 @@ class _MapPageBodyState extends State<MapPageBody> {
   @override
   void initState() {
     initPosition = widget.initPosition;
-    _getNearbyStop(initPosition, .5);
+    _getNearbyStop(initPosition, 0.5);
     super.initState();
   }
   @override
@@ -49,9 +49,6 @@ class _MapPageBodyState extends State<MapPageBody> {
   }
   void _getNearbyStop(LatLng location, double distance) async{
 
-    double deltaLatitude = (180/pi)*(distance/6378.137);
-    double deltaLongitude = (180/pi)*(distance/6378.137)/cos(pi/180*location.latitude);
-
     Set<BusStop> newBusStops = busStops;
     print('getting data');
     await gtfs_db.tablesMap['stops']!.queryTable(
@@ -60,12 +57,8 @@ class _MapPageBodyState extends State<MapPageBody> {
     )
     .then(
       (stopDatas) => stopDatas.where((stopData) {
-        var lat = stopData['stop_lat'];
-        var lon = stopData['stop_lon'];
-        return lat >= location.latitude - deltaLatitude
-            && lat <= location.latitude + deltaLatitude
-            && lon >= location.longitude - deltaLongitude
-            && lon <= location.longitude + deltaLongitude;
+        LatLng stopPosition = LatLng(stopData['stop_lat'], stopData['stop_lon']);
+        return calculatePointDistance(stopPosition, location) <= distance;
       })
     )
     .then((filteredStopDatas) {
@@ -140,6 +133,7 @@ class _MapPageBodyState extends State<MapPageBody> {
           },
           onCameraMove: (position) {
             _customInfoWindowController.onCameraMove!();
+
           },
           markers: markers,
           myLocationEnabled: true,
