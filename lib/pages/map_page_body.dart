@@ -8,6 +8,7 @@ import 'package:clippy_flutter/clippy_flutter.dart';
 import 'package:custom_info_window/custom_info_window.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:tuple/tuple.dart';
 
 import '../db/gtfs_database.dart' as gtfs_db;
 
@@ -22,33 +23,61 @@ class MapPageBody extends StatefulWidget {
   State<MapPageBody> createState() => _MapPageBodyState();
 }
 class _MapPageBodyState extends State<MapPageBody> {
-  Completer<GoogleMapController> _controller = Completer();
+  Completer<GoogleMapController> _mapControllerCompleter = Completer();
+  GoogleMapController? _mapController;
   final CustomInfoWindowController _customInfoWindowController = CustomInfoWindowController();
 
+  StreamController<Tuple2<Set<BusStop>, bool>> busStopDateStream = StreamController();
+  Timer? updateBusStopTimer;
+
+  Future<GoogleMapController> get controller async {
+    if(_mapController != null) return _mapController!;
+    _mapController = await _mapControllerCompleter.future;
+    return _mapController!;
+  }
   Set<BusStop> busStops = {};
-  
+  LatLng? _lastCameraPosition;
   late LatLng initPosition; 
+
+  static const busStopCheckDistance = 1.0;
+  static const minBusStopZoom = 15;
 
   @override
   void initState() {
     initPosition = widget.initPosition;
-    _getNearbyStop(initPosition, 0.5);
+    _updateNearbyStop(initPosition, busStopCheckDistance);
     super.initState();
   }
   @override
   Widget build(BuildContext context) {
-    Set<Marker> markers = busStops.map((busStop) =>
-      getBusStopMarker(
-        busStop.id,
-        busStop.position,
-        busStop.name
-    )).toSet();
-
-    markers.add(getBusStopMarker('Test Stop', initPosition, 'Test Stop'));
-    return backgroundMap(initPosition, markers);
+    return StreamBuilder<Tuple2<Set<BusStop>, bool>>(
+      stream: busStopDateStream.stream,
+      initialData: Tuple2({}, false),
+      builder: (context, snapshot){
+        var busStops = snapshot.data!.item1;
+        var loadingMarkers = snapshot.data!.item2;
+        Set<Marker> markers = loadingMarkers ?  
+          busStops.map((busStop) =>
+            getBusStopMarker(
+              busStop.id,
+              busStop.position,
+              busStop.name
+          )).toSet()
+          : {};
+        // markers.add(getBusStopMarker('Test Stop', initPosition, 'Test Stop'));
+        return backgroundMap(initPosition, markers);
+      }
+    );    
   }
-  void _getNearbyStop(LatLng location, double distance) async{
-
+  void _updateNearbyStop(LatLng location, double distance) async{
+    var c = await controller;
+    var zoomeLevel = await c.getZoomLevel();
+    if(zoomeLevel < minBusStopZoom){
+      busStopDateStream.add(
+        const Tuple2({}, false)
+      );
+      return;
+    }
     Set<BusStop> newBusStops = busStops;
     print('getting data');
     await gtfs_db.tablesMap['stops']!.queryTable(
@@ -72,9 +101,11 @@ class _MapPageBodyState extends State<MapPageBody> {
         ));
       }
     });
-    setState(() {
-      busStops = newBusStops;
-    });
+
+    busStopDateStream.add(Tuple2(
+      busStops = newBusStops,
+      true
+    ));
   }
   Marker getBusStopMarker(String markerId, LatLng markerPosition, String title) {
     
@@ -119,27 +150,41 @@ class _MapPageBodyState extends State<MapPageBody> {
   }
 
   Widget backgroundMap(LatLng currentPosition, Set<Marker> markers) {
-    _controller = Completer();
+    _mapControllerCompleter = Completer();
     setMapTheme();
     return Stack(
       children: [
         GoogleMap(
           initialCameraPosition: CameraPosition(
             target: LatLng(currentPosition.latitude, currentPosition.longitude),
-            zoom: 15,
+            zoom: 17,
           ),
           onTap: (position) {
             _customInfoWindowController.hideInfoWindow!();
           },
           onCameraMove: (position) {
             _customInfoWindowController.onCameraMove!();
-
+            _lastCameraPosition = position.target;
+          },
+          onCameraIdle: () {
+            if(updateBusStopTimer == null){
+              Timer.periodic(Duration(milliseconds: 500), (timer) { 
+                _updateNearbyStop(_lastCameraPosition!, busStopCheckDistance);
+                timer.cancel();
+              });
+            }
+            else if(!updateBusStopTimer!.isActive){
+              Timer.periodic(Duration(milliseconds: 500), (timer) { 
+                _updateNearbyStop(_lastCameraPosition!, busStopCheckDistance);
+                timer.cancel();
+              });
+            }
           },
           markers: markers,
           myLocationEnabled: true,
           myLocationButtonEnabled: true,
           onMapCreated: (controller) {
-              _controller.complete(controller);
+              _mapControllerCompleter.complete(controller);
               _customInfoWindowController.googleMapController = controller;
           },
         ),
@@ -152,16 +197,17 @@ class _MapPageBodyState extends State<MapPageBody> {
       ]
     );
   }
+
   void setMapTheme() async{
-    final controller = await _controller.future;
+    final c = await controller;
     late String mapStyle;
     if(Theme.of(context).colorScheme.brightness == Brightness.dark){
       mapStyle  = await rootBundle.loadString('assets/json/map_darkmode.json');
-      controller.setMapStyle(mapStyle);
+      c.setMapStyle(mapStyle);
       return;
     }
     mapStyle  = await rootBundle.loadString('assets/json/map_lightmode.json');
-    controller.setMapStyle(mapStyle);
+    c.setMapStyle(mapStyle);
   }
 }
 class BusStop {
