@@ -7,7 +7,7 @@ void main() {
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
-  static const Color themeColor = Colors.green;
+  static const Color themeColor = Color(0x0000b548);
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

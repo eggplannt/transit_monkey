@@ -7,6 +7,7 @@ environment:
   sdk: '>=3.2.6 <4.0.0'
 
 dependencies:
+  archive: ^3.4.10
   clippy_flutter: ^2.0.0-nullsafety.1
   collection: ^1.18.0
   csv: ^5.1.1
@@ -21,18 +22,32 @@ dependencies:
   http: ^1.2.0
   lints: ^2.1.1
   path: ^1.8.3
+  path_provider: ^2.1.2
   protobuf: ^3.1.0
   sqflite: ^2.3.2
+  sqflite_common: ^2.5.3
   tuple: ^2.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
   flutter_lints: ^2.0.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  addaptive_icon_foreground: "assets/imgs/icons/foreground_icon.png"
+  adaptive_icon_background: "assets/imgs/icons/background_icon.png"
+  image_path_android: "assets/imgs/icons/android_icon.png"
+  image_path_ios: "assets/imgs/icons/apple_icon.png"
+
+
+
+
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/csvs/
     - assets/json/
     - assets/imgs/

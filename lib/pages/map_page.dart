@@ -1,6 +1,7 @@
 // ignore_for_file: non_constant_identifier_names, use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:developer';
 
 import  'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
@@ -60,7 +61,7 @@ class _MapPageState extends State<MapPage> {
 
 
   Future<void> getCurrentPosition() async {
-    print('getting location');
+    log('getting location');
     currentPosition =  await Geolocator.getLastKnownPosition()
     .then((value) { 
       if(value != null) {
@@ -70,7 +71,7 @@ class _MapPageState extends State<MapPage> {
     });
     currentPosition ??= await Geolocator.getCurrentPosition( desiredAccuracy: LocationAccuracy.best)
     .then((value) => LatLng(value.latitude, value.longitude));
-    print('got location');
+    log('got location');
   }
 
   Future<void> initGtfsDatabase() async{
@@ -89,15 +90,16 @@ class _MapPageState extends State<MapPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: hasLocationPermission == false ? AppBar(
-        actions: [
+      appBar:AppBar(
+        backgroundColor: Colors.transparent,
+        actions:  hasLocationPermission == false ? [
           TextButton.icon( 
             onPressed: () { handleLocationPermission();}, 
             icon: const Icon(Icons.location_disabled), 
             label: const Text('Get Location Permission')
           )
-        ]
-      ) : null,
+        ] : null
+      ),
       body: hasLocationPermission ? (
         initializedDatabase ? (
           vehiclesFeed == null || currentPosition == null ? FutureBuilder(

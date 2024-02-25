@@ -1,6 +1,7 @@
 // ignore_for_file: non_constant_identifier_names, use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:developer';
 import 'dart:math' show cos, sqrt, asin;
 
 import  'package:flutter/material.dart';
@@ -39,7 +40,7 @@ class _MapPageBodyState extends State<MapPageBody> {
   LatLng? _lastCameraPosition;
   late LatLng initPosition; 
 
-  static const busStopCheckDistance = 1.0;
+  static const busStopCheckDistance = 0.6;
   static const minBusStopZoom = 15;
 
   @override
@@ -52,7 +53,7 @@ class _MapPageBodyState extends State<MapPageBody> {
   Widget build(BuildContext context) {
     return StreamBuilder<Tuple2<Set<BusStop>, bool>>(
       stream: busStopDateStream.stream,
-      initialData: Tuple2({}, false),
+      initialData: const Tuple2({}, false),
       builder: (context, snapshot){
         var busStops = snapshot.data!.item1;
         var loadingMarkers = snapshot.data!.item2;
@@ -79,10 +80,9 @@ class _MapPageBodyState extends State<MapPageBody> {
       return;
     }
     Set<BusStop> newBusStops = busStops;
-    print('getting data');
-    await gtfs_db.tablesMap['stops']!.queryTable(
-      'SELECT stop_id, stop_name, stop_lat, stop_lon, location_type FROM ',
-      []
+    await gtfs_db.queryTable(
+      'stops',
+      selections: 'stop_id, stop_name, stop_lat, stop_lon, location_type'
     )
     .then(
       (stopDatas) => stopDatas.where((stopData) {
@@ -115,6 +115,18 @@ class _MapPageBodyState extends State<MapPageBody> {
       icon: BitmapDescriptor.defaultMarkerWithHue(
         BitmapDescriptor.hueGreen
       ),
+      onTap: () async {
+        gtfs_db.queryDatabase(
+          '''
+            SELECT DISTINCT r.route_short_name
+            FROM stop_times st
+            INNER JOIN trips t ON t.trip_id = st.trip_id
+            INNER JOIN routes r ON r.route_id = t.route_id
+            WHERE st.stop_id = ?
+          ''', 
+          [markerId]
+        ).then((value) => log(value.toString()));
+      },
       // TODO: add info window
       // onTap: () {
       //   _customInfoWindowController.addInfoWindow!(
@@ -168,13 +180,13 @@ class _MapPageBodyState extends State<MapPageBody> {
           },
           onCameraIdle: () {
             if(updateBusStopTimer == null){
-              Timer.periodic(Duration(milliseconds: 500), (timer) { 
+              Timer.periodic(const Duration(milliseconds: 500), (timer) { 
                 _updateNearbyStop(_lastCameraPosition!, busStopCheckDistance);
                 timer.cancel();
               });
             }
             else if(!updateBusStopTimer!.isActive){
-              Timer.periodic(Duration(milliseconds: 500), (timer) { 
+              Timer.periodic(const Duration(milliseconds: 500), (timer) { 
                 _updateNearbyStop(_lastCameraPosition!, busStopCheckDistance);
                 timer.cancel();
               });
