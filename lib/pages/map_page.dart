@@ -20,7 +20,10 @@ class MapPage extends StatefulWidget {
   State<MapPage> createState() => _MapPageState();
 }
 
+
 class _MapPageState extends State<MapPage> {
+   
+
 
   bool hasLocationPermission = false;
   bool initializedDatabase = false;

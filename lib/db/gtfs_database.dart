@@ -169,13 +169,13 @@ Future<List<Map<String, dynamic>>> getCsvParsed(String rawData) async {
   return maps;
 }
 
-Future<List<Map<String, dynamic>>> queryTable(String tableName, {String? selections, String? query, List<dynamic>? args}) async {
+Future<List<Map<String, dynamic>>> queryTable(String tableName, {String? selections, String? where, List<dynamic>? args}) async {
   Database db = await getDatabase();
   List<Map<String, dynamic>> output = [];
   await db.transaction((txn) async {
     output =  await txn.query(
       tableName,
-      where: query, 
+      where: where, 
       whereArgs: args,
       columns: selections?.split(', ')
     );

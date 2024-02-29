@@ -1,7 +1,6 @@
 // ignore_for_file: non_constant_identifier_names, use_build_context_synchronously
 
 import 'dart:async';
-import 'dart:developer';
 import 'dart:math' show cos, sqrt, asin;
 
 import  'package:flutter/material.dart';
@@ -9,9 +8,10 @@ import 'package:clippy_flutter/clippy_flutter.dart';
 import 'package:custom_info_window/custom_info_window.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:tuple/tuple.dart';
+import 'package:transit_monkey/pages/bus_stop_map_page.dart';
+import 'package:widget_to_marker/widget_to_marker.dart';
 
-import '../db/gtfs_database.dart' as gtfs_db;
+import '../db/gtfs_database.dart';
 
 class MapPageBody extends StatefulWidget {
   final LatLng initPosition;
@@ -24,22 +24,22 @@ class MapPageBody extends StatefulWidget {
   State<MapPageBody> createState() => _MapPageBodyState();
 }
 class _MapPageBodyState extends State<MapPageBody> {
-  Completer<GoogleMapController> _mapControllerCompleter = Completer();
-  GoogleMapController? _mapController;
+  
   final CustomInfoWindowController _customInfoWindowController = CustomInfoWindowController();
 
-  StreamController<Tuple2<Set<BusStop>, bool>> busStopDateStream = StreamController();
-  Timer? updateBusStopTimer;
+  StreamController<Set<Marker>> busStoMarkerStream = StreamController();
+  bool updatingTimer = false;
+
+  Completer<GoogleMapController> _mapControllerCompleter = Completer();
+  GoogleMapController? _mapController;
 
   Future<GoogleMapController> get controller async {
-    if(_mapController != null) return _mapController!;
-    _mapController = await _mapControllerCompleter.future;
-    return _mapController!;
+    return await _mapControllerCompleter.future;
   }
   Set<BusStop> busStops = {};
   LatLng? _lastCameraPosition;
   late LatLng initPosition; 
-
+  BitmapDescriptor? busStopIcon;
   static const busStopCheckDistance = 0.6;
   static const minBusStopZoom = 15;
 
@@ -51,36 +51,34 @@ class _MapPageBodyState extends State<MapPageBody> {
   }
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<Tuple2<Set<BusStop>, bool>>(
-      stream: busStopDateStream.stream,
-      initialData: const Tuple2({}, false),
+    return StreamBuilder<Set<Marker>>(
+      stream: busStoMarkerStream.stream,
+      initialData: const {},
       builder: (context, snapshot){
-        var busStops = snapshot.data!.item1;
-        var loadingMarkers = snapshot.data!.item2;
-        Set<Marker> markers = loadingMarkers ?  
-          busStops.map((busStop) =>
-            getBusStopMarker(
-              busStop.id,
-              busStop.position,
-              busStop.name
-          )).toSet()
-          : {};
+        var busMarkers = snapshot.data!;
         // markers.add(getBusStopMarker('Test Stop', initPosition, 'Test Stop'));
-        return backgroundMap(initPosition, markers);
+        return backgroundMap(initPosition, busMarkers);
       }
     );    
   }
   void _updateNearbyStop(LatLng location, double distance) async{
+    busStopIcon ??= await Image.asset(
+        'assets/imgs/bus_marker.png'
+      ).toBitmapDescriptor(
+      logicalSize: const Size(376, 564), imageSize: const Size(56, 82
+    ));
+    updatingTimer = true;
     var c = await controller;
     var zoomeLevel = await c.getZoomLevel();
     if(zoomeLevel < minBusStopZoom){
-      busStopDateStream.add(
-        const Tuple2({}, false)
+      busStoMarkerStream.add(
+        const {}
       );
+      updatingTimer = false;
       return;
     }
     Set<BusStop> newBusStops = busStops;
-    await gtfs_db.queryTable(
+    await queryTable(
       'stops',
       selections: 'stop_id, stop_name, stop_lat, stop_lon, location_type'
     )
@@ -101,32 +99,45 @@ class _MapPageBodyState extends State<MapPageBody> {
         ));
       }
     });
+    busStops = newBusStops;
 
-    busStopDateStream.add(Tuple2(
-      busStops = newBusStops,
-      true
-    ));
+
+    Set<Marker> markers = {};
+    for (var busStop in busStops){
+      if(busStop.type != 0) continue;
+      var marker = await getBusStopMarker(
+        busStop.id,
+        busStop.position,
+        busStop.name,
+      );
+      markers.add(marker);
+    }
+    busStoMarkerStream.add(markers);
+    updatingTimer = false;
   }
-  Marker getBusStopMarker(String markerId, LatLng markerPosition, String title) {
+  Future<Marker> getBusStopMarker(String stopId, LatLng markerPosition, String title) async {
     
     return  Marker(
-      markerId: MarkerId(markerId),
+      markerId: MarkerId(stopId),
       position: markerPosition,
-      icon: BitmapDescriptor.defaultMarkerWithHue(
-        BitmapDescriptor.hueGreen
-      ),
-      onTap: () async {
-        gtfs_db.queryDatabase(
-          '''
-            SELECT DISTINCT r.route_short_name
-            FROM stop_times st
-            INNER JOIN trips t ON t.trip_id = st.trip_id
-            INNER JOIN routes r ON r.route_id = t.route_id
-            WHERE st.stop_id = ?
-          ''', 
-          [markerId]
-        ).then((value) => log(value.toString()));
+      icon: busStopIcon!,
+      onTap: () {
+        var thisMarker = Marker(
+          markerId: MarkerId(stopId),
+          position: markerPosition,
+          icon: busStopIcon!,
+        );
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => BusStopMapPage(
+              stopId: stopId,
+              initPosition: markerPosition,
+              busStopMarker: thisMarker
+            )
+          )
+        );
       },
+      
       // TODO: add info window
       // onTap: () {
       //   _customInfoWindowController.addInfoWindow!(
@@ -136,7 +147,6 @@ class _MapPageBodyState extends State<MapPageBody> {
       // },
     );
   }
-  
   Widget busStopWindow(String title) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -162,7 +172,7 @@ class _MapPageBodyState extends State<MapPageBody> {
   }
 
   Widget backgroundMap(LatLng currentPosition, Set<Marker> markers) {
-    _mapControllerCompleter = Completer();
+    if(_mapController != null) _mapControllerCompleter = Completer();
     setMapTheme();
     return Stack(
       children: [
@@ -179,17 +189,8 @@ class _MapPageBodyState extends State<MapPageBody> {
             _lastCameraPosition = position.target;
           },
           onCameraIdle: () {
-            if(updateBusStopTimer == null){
-              Timer.periodic(const Duration(milliseconds: 500), (timer) { 
-                _updateNearbyStop(_lastCameraPosition!, busStopCheckDistance);
-                timer.cancel();
-              });
-            }
-            else if(!updateBusStopTimer!.isActive){
-              Timer.periodic(const Duration(milliseconds: 500), (timer) { 
-                _updateNearbyStop(_lastCameraPosition!, busStopCheckDistance);
-                timer.cancel();
-              });
+            if(!updatingTimer){
+              _updateNearbyStop(_lastCameraPosition!, busStopCheckDistance);
             }
           },
           markers: markers,
