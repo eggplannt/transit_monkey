@@ -61,9 +61,14 @@ Future<void> _createTable(Database db, int version) async{
   Map<String, List<Map<String, dynamic>>> tableData = {};
 
   var url = Uri.parse(gtfsFetch);
+
+  log('downloading');
   var responce = await http.get(url);
+
+  log('getting body bytes');
   final bytes = responce.bodyBytes;
 
+  log('extracting');
   final archive = ZipDecoder().decodeBytes(bytes);
 
   for(var file in archive){

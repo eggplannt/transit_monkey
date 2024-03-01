@@ -65,7 +65,7 @@ class _MapPageBodyState extends State<MapPageBody> {
     busStopIcon ??= await Image.asset(
         'assets/imgs/bus_marker.png'
       ).toBitmapDescriptor(
-      logicalSize: const Size(376, 564), imageSize: const Size(56, 82
+      logicalSize: const Size(150, 150), imageSize: const Size(150, 150
     ));
     updatingTimer = true;
     var c = await controller;

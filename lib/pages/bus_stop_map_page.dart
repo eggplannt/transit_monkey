@@ -35,9 +35,11 @@ class _BusStopMapPageState extends State<BusStopMapPage> {
   
 
   StreamController<Set<Marker>> busMarkerStream = StreamController();
+  Timer? timer;
 
   @override
   void initState() {
+    timer = Timer.periodic(Duration(seconds: 10), (timer) { _updateBusStream();});
     _updateBusStream();
     super.initState();
   }
@@ -55,40 +57,58 @@ class _BusStopMapPageState extends State<BusStopMapPage> {
       }
     );
   }
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
   void _updateBusStream() async {
+    log('getting feed');
+    FeedMessage feed = await vehiclePositionMessage.then((feed) {
+      log('got feed');
+      return feed;
+    });
+    Set<Marker> markers = {};
 
-    while(true){
-      await Future.delayed(const Duration(seconds: 10));
-      log('getting feed');
-      FeedMessage feed = await vehiclePositionMessage.then((feed) {
-        log('got feed');
-        return feed;
+    List<VehiclePosition> vehicles = [];
+    for(var entity in feed.entity){
+      int sequence = await queryDatabase('''
+        SELECT st.stop_sequence
+        FROM stop_times st
+        WHERE st.trip_id = ? AND st.stop_id = ?
+      ''',
+      [entity.vehicle.trip.tripId, widget.stopId]
+      )
+      .then((value) {
+        if(value.isNotEmpty) return value.first['stop_sequence'] as int;
+        return -1;
       });
-      Set<Marker> markers = {};
-      List<FeedEntity> entitys = feed.entity.where((entity) => entity.vehicle.stopId == widget.stopId).toList();
+    
 
-      for(var entity in entitys){
-        
-        var tripId = entity.vehicle.trip.tripId;
-        var position = LatLng( entity.vehicle.position.latitude, entity.vehicle.position.longitude);
-        var bus = await queryDatabase('''
-          SELECT DISTINCT t.trip_headsign, r.route_text_colour, r.route_color
-          FROM trips t
-          JOIN stop_times st ON t.trip_id = st.trip_id
-          JOIN stops s ON st.stop_id = s.stop_id
-          JOIN routes r ON t.route_id = r.route_id
-          WHERE s.stop_id = ?;
-        ''', 
-        [widget.stopId]
-        );
-        markers.add(getBusMarker(
-          tripId, 
-          position, 
-          bus.first['trip_headsign']
-        ));
+      if(entity.vehicle.currentStopSequence < sequence){
+        vehicles.add(entity.vehicle);
       }
-      busMarkerStream.add(markers);
     }
+
+    for(var vehicle in vehicles){
+      
+      var tripId = vehicle.trip.tripId;
+      var position = LatLng( vehicle.position.latitude, vehicle.position.longitude);
+      var bus = await queryDatabase('''
+        SELECT t.trip_headsign, r.route_text_color, r.route_color
+        FROM trips t
+        JOIN routes r ON t.route_id = r.route_id
+        WHERE t.trip_id = ?;
+      ''', 
+      [vehicle.trip.tripId]
+      );
+      markers.add(getBusMarker(
+        tripId, 
+        position, 
+        bus.first['trip_headsign']
+      ));
+    }
+    busMarkerStream.add(markers);
   }
   Widget backgroundMap(LatLng currentPosition, Set<Marker> markers) {
     if(_mapControllerCompleter.isCompleted) _mapControllerCompleter = Completer();
