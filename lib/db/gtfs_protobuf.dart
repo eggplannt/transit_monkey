@@ -2,13 +2,13 @@ import 'package:http/http.dart' as http;
 
 import 'generated/gtfs-realtime.pb.dart';
 
-FeedMessage? _vehiclePositionMessage;
-
-
-Future<FeedMessage> get vehiclePositionMessage async{
-  final url = Uri.parse('http://gtfs.edmonton.ca/TMGTFSRealTimeWebService/Vehicle/VehiclePositions.pb');
+Future<FeedMessage> getVehiclePositionMessage() async {
+  final url = Uri.parse(
+      'http://gtfs.edmonton.ca/TMGTFSRealTimeWebService/Vehicle/VehiclePositions.pb');
   final response = await http.get(url);
 
-  if (response.statusCode == 200) _vehiclePositionMessage = FeedMessage.fromBuffer(response.bodyBytes);
-  return _vehiclePositionMessage!;
+  if (response.statusCode != 200) {
+    throw Exception('Failed to load vehicle positions');
+  }
+  return FeedMessage.fromBuffer(response.bodyBytes);
 }
