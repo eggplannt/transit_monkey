@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:transit_monkey/pages/map_page.dart';
+import 'package:transit_monkey/pages/init_loading.dart';
 
 void main() {
   runApp(const MainApp());
@@ -20,7 +20,7 @@ class MainApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: themeColor, brightness: Brightness.dark)
       ),
       themeMode: ThemeMode.dark,
-      home: const MapPage()
+      home: const Loading()
     );
   }
 }

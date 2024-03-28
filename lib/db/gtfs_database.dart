@@ -9,7 +9,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 import 'package:http/http.dart' as http;
-import 'package:transit_monkey/constants.dart';
+import 'package:transit_monkey/globals.dart';
 
 Database? _database;
 

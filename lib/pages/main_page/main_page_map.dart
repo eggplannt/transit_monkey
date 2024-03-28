@@ -10,23 +10,23 @@ import 'package:clippy_flutter/clippy_flutter.dart';
 import 'package:custom_info_window/custom_info_window.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:transit_monkey/constants.dart';
-import 'package:transit_monkey/pages/bus_stop_map_page.dart';
+import 'package:transit_monkey/globals.dart';
+import 'package:transit_monkey/pages/bus_stop_page/bus_stop_page.dart';
 import 'package:transit_monkey/backend_decoders.dart';
 import 'package:widget_to_marker/widget_to_marker.dart';
 
-class MapPageBody extends StatefulWidget {
+class MainPageMap extends StatefulWidget {
   final LatLng initPosition;
-  const MapPageBody(
+  const MainPageMap(
     this.initPosition, {
     super.key,
   });
 
   @override
-  State<MapPageBody> createState() => _MapPageBodyState();
+  State<MainPageMap> createState() => _MainPageMapState();
 }
 
-class _MapPageBodyState extends State<MapPageBody> {
+class _MainPageMapState extends State<MainPageMap> {
   final CustomInfoWindowController _customInfoWindowController =
       CustomInfoWindowController();
 
@@ -125,10 +125,12 @@ class _MapPageBodyState extends State<MapPageBody> {
           icon: busStopIcon!,
         );
         Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) => BusStopMapPage(
-                stopId: stopId,
-                initPosition: markerPosition,
-                busStopMarker: thisMarker)));
+          builder: (context) => BusStopPage(
+            stopId: stopId,
+            initPosition: markerPosition,
+            busStopMarker: thisMarker
+          )
+        ));
       },
 
       // TODO: add info window

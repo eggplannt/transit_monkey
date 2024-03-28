@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:transit_monkey/constants.dart';
+import 'package:transit_monkey/globals.dart';
 import 'package:transit_monkey/backend_decoders.dart';
 
 class BusStopMapPage extends StatefulWidget {
