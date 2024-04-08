@@ -11,8 +11,8 @@ import 'package:custom_info_window/custom_info_window.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:transit_monkey/globals.dart';
-import 'package:transit_monkey/pages/bus_stop_page/bus_stop_page.dart';
-import 'package:transit_monkey/backend_decoders.dart';
+import 'package:transit_monkey/apis.dart';
+import 'package:transit_monkey/pages/bus_stop_page/bus_stop_page_loader.dart';
 import 'package:widget_to_marker/widget_to_marker.dart';
 
 class MainPageMap extends StatefulWidget {
@@ -111,8 +111,7 @@ class _MainPageMapState extends State<MainPageMap> {
   Future<Marker> getBusStopMarker(
       String stopId, LatLng markerPosition, String title) async {
     busStopIcon ??= await Image.asset('assets/imgs/bus_marker.png')
-        .toBitmapDescriptor(
-            logicalSize: const Size(150, 150), imageSize: const Size(150, 150));
+        .toBitmapDescriptor(imageSize: const Size(75, 75));
 
     return Marker(
       markerId: MarkerId(stopId),
@@ -125,7 +124,7 @@ class _MainPageMapState extends State<MainPageMap> {
           icon: busStopIcon!,
         );
         Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => BusStopPage(
+          builder: (context) => BusStopPageLoader(
             stopId: stopId,
             initPosition: markerPosition,
             busStopMarker: thisMarker
@@ -133,13 +132,6 @@ class _MainPageMapState extends State<MainPageMap> {
         ));
       },
 
-      // TODO: add info window
-      // onTap: () {
-      //   _customInfoWindowController.addInfoWindow!(
-      //     busStopWindow(title),
-      //     markerPosition,
-      //   );
-      // },
     );
   }
 

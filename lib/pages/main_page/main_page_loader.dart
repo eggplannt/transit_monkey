@@ -10,14 +10,14 @@ import 'package:transit_monkey/db/gtfs_database.dart';
 import 'package:transit_monkey/pages/main_page/main_page.dart';
 
 
-class Loading extends StatefulWidget {
-  const Loading({Key? key}) : super(key: key);
+class MainPageLoader extends StatefulWidget {
+  const MainPageLoader({Key? key}) : super(key: key);
   
   @override
-  State<Loading> createState() => _LoadingState();
+  State<MainPageLoader> createState() => _MainPageLoaderState();
 }
 
-class _LoadingState extends State<Loading> {
+class _MainPageLoaderState extends State<MainPageLoader> {
 
   bool hasLocationPermission = false;
 
@@ -85,11 +85,11 @@ class _LoadingState extends State<Loading> {
     Widget? body;
     if(!hasLocationPermission){
       handleLocationPermission();
-      body = const Text("No Permission");
+      body = loadingWidget("No Permission", context);
     }
     else{
       load();
-      body = const Text("Loading Location...");
+      body = loadingWidget("Loading Location...", context);
     }
     return Scaffold(
       appBar: AppBar(

@@ -15,8 +15,10 @@ const List<String> dbSchema = [
   'CREATE TABLE shapes (shape_id TEXT, shape_pt_lat FLOAT, shape_pt_lon FLOAT, shape_pt_sequence INTEGER)',
   'CREATE TABLE stop_times (trip_id INTEGER, arrival_time TIME, departure_time TIME, stop_id TEXT, stop_sequence INTEGER, stop_headsign TEXT, pickup_type INTEGER, drop_off_type INTEGER, shape_dist_traveled FLOAT, timepoint INTEGER)',
   'CREATE TABLE transfers (from_stop_id TEXT, to_stop_id TEXT, transfer_type INTEGER, min_transfer_time INTEGER, PRIMARY KEY (from_stop_id, to_stop_id))',
-  'CREATE TABLE trips (route_id TEXT, service_id TEXT, trip_id TEXT, trip_headsign TEXT, direction_id INTEGER, block_id TEXT, shape_id TEXT, wheelchair_accessible INTEGER, bikes_allowed INTEGER, PRIMARY KEY (trip_id, direction_id, block_id, shape_id, wheelchair_accessible, bikes_allowed))',
+  'CREATE TABLE trips (route_id TEXT, service_id TEXT, trip_id TEXT PRIMARY KEY, trip_headsign TEXT, direction_id INTEGER, block_id TEXT, shape_id TEXT, wheelchair_accessible INTEGER, bikes_allowed INTEGER)',
   'CREATE INDEX stop_times_stop_id_trip_id_index ON stop_times(stop_id, trip_id)'
+  'CREATE INDEX stop_times_arrival_time_departure_time_stop_sequence_index ON stop_times(arrival_time, departure_time, stop_sequence)'
 ];
 
 const String backendIp = '142.93.156.43';
+const String localhost = '10.0.2.2:8080';

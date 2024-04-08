@@ -102,3 +102,30 @@ class Bus {
         "trip": trip.toJson()
       };
 }
+
+
+List<Departure> departuresFromJson(String str) => List<Departure>.from(json.decode(str).map((x) => Departure.fromJson(x)));
+
+Departure departureFromJson(String str) => Departure.fromJson(json.decode(str));
+
+String departureToJson(List<Departure> data) => json.encode(List<dynamic>.from(data.map((x) => x.toJson())));
+
+class Departure {
+    String departureTime;
+    Trip trip;
+
+    Departure({
+        required this.departureTime,
+        required this.trip,
+    });
+
+    factory Departure.fromJson(Map<String, dynamic> json) => Departure(
+        departureTime: json["departureTime"],
+        trip: Trip.fromJson(json["trip"]),
+    );
+
+    Map<String, dynamic> toJson() => {
+        "departureTime": departureTime,
+        "trip": trip.toJson(),
+    };
+}

@@ -8,17 +8,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:transit_monkey/globals.dart';
-import 'package:transit_monkey/backend_decoders.dart';
+import 'package:transit_monkey/apis.dart';
 
 class BusStopMapPage extends StatefulWidget {
-  final LatLng initPosition;
   final Marker busStopMarker;
-  final String stopId;
-  const BusStopMapPage(
-      {super.key,
-      required this.initPosition,
-      required this.busStopMarker,
-      required this.stopId});
+  final Stop stop;
+  const BusStopMapPage({
+    super.key,
+    required this.busStopMarker,
+    required this.stop
+  });
 
   @override
   State<BusStopMapPage> createState() => _BusStopMapPageState();
@@ -50,7 +49,7 @@ class _BusStopMapPageState extends State<BusStopMapPage> {
         initialData: {},
         builder: (context, snapshot) {
           snapshot.data!.add(widget.busStopMarker);
-          return backgroundMap(widget.initPosition, snapshot.data!);
+          return backgroundMap(widget.stop.position, snapshot.data!);
         });
   }
 
@@ -63,13 +62,12 @@ class _BusStopMapPageState extends State<BusStopMapPage> {
   void _updateBusStream() async {
     Set<Marker> markers = {};
 
-    var url = Uri.http(backendIp, '/bus/heading_to_stop/${widget.stopId}');
+    var url = Uri.http(backendIp, '/bus/heading_to_stop/${widget.stop.id}');
     log('getting busses');
     var responce = await http.get(url);
     log('got busses');
 
     if (responce.statusCode != 200) {
-      log(responce.body);
       return;
     }
 
